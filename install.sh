@@ -1,6 +1,8 @@
 #!/bin/bash
 CURRENT_DIRNAME="$(dirname `readlink -f $0`)"
 
+mkdir "${CURRENT_DIRNAME}/tmp"
+
 #recognize
 (
     rm -Rf "${CURRENT_DIRNAME}/recognize"
