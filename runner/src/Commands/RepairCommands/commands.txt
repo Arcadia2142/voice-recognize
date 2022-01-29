@@ -1,0 +1,4 @@
+[cs]
+repair.regexp = oprava
+repair.help = Oprava rozpoznání textu
+repair.example = oprava

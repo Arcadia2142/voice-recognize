@@ -1,0 +1,8 @@
+[cs]
+changeFocus.regexp = přepni (?:na |)(.+)
+changeFocus.help = Změní focus na jiné okno
+changeFocus.example = přepni firefox
+
+closeWindow.regexp = zavři
+closeWindow.help = Zavři aktuální okno
+closeWindow.example = zavři

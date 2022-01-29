@@ -1,0 +1,4 @@
+[cs]
+changeModule.regexp = režim (.+)
+changeModule.help = Změna režimu rozpoznávání pžíkazů
+changeModule.example = režim text
