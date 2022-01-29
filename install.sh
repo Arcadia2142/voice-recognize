@@ -51,6 +51,8 @@ CURRENT_DIRNAME="$(dirname `readlink -f $0`)"
   wget -O "${CURRENT_DIRNAME}/models/cs/cs.pbmm" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/output_graph.pbmm"
 
   wget -O "${CURRENT_DIRNAME}/models/cs/checkpoint.zip" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/checkpoint.zip"
-  unzip "${CURRENT_DIRNAME}/models/cs/checkpoint.zip"
+
+  mkdir "${CURRENT_DIRNAME}/models/cs/checkpoint"
+  unzip "${CURRENT_DIRNAME}/models/cs/checkpoint.zip" -d "${CURRENT_DIRNAME}/models/cs/checkpoint/"
 )
 
