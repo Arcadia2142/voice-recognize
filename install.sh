@@ -43,7 +43,7 @@ CURRENT_DIRNAME="$(dirname `readlink -f $0`)"
 
 #Download CS-model
 (
-  mkdir "${CURRENT_DIRNAME}/modesl/cs"
+  mkdir "${CURRENT_DIRNAME}/models/cs"
   cd "${CURRENT_DIRNAME}/models/cs"
 
   wget -o "${CURRENT_DIRNAME}/models/cs/alphabet.txt" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/alphabet.txt"
