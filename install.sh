@@ -43,14 +43,14 @@ CURRENT_DIRNAME="$(dirname `readlink -f $0`)"
 
 #Download CS-model
 (
-  mkdir "${CURRENT_DIRNAME}/model/cs"
-  cd "${CURRENT_DIRNAME}/model/cs"
+  mkdir "${CURRENT_DIRNAME}/modesl/cs"
+  cd "${CURRENT_DIRNAME}/models/cs"
 
-  wget -o "${CURRENT_DIRNAME}/model/cs/alphabet.txt" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/alphabet.txt"
-  wget -o "${CURRENT_DIRNAME}/model/cs/cs.scorer" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/o4-500k-wnc-2011.scorer"
-  wget -o "${CURRENT_DIRNAME}/model/cs/cs.pbmm" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/output_graph.pbmm"
+  wget -o "${CURRENT_DIRNAME}/models/cs/alphabet.txt" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/alphabet.txt"
+  wget -o "${CURRENT_DIRNAME}/models/cs/cs.scorer" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/o4-500k-wnc-2011.scorer"
+  wget -o "${CURRENT_DIRNAME}/models/cs/cs.pbmm" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/output_graph.pbmm"
 
-  wget -o "${CURRENT_DIRNAME}/model/cs/checkpoint.zip" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/checkpoint.zip"
-  unzip "${CURRENT_DIRNAME}/model/cs/checkpoint.zip"
+  wget -o "${CURRENT_DIRNAME}/models/cs/checkpoint.zip" "https://github.com/comodoro/deepspeech-cs/releases/download/2021-07-21/checkpoint.zip"
+  unzip "${CURRENT_DIRNAME}/models/cs/checkpoint.zip"
 )
 
