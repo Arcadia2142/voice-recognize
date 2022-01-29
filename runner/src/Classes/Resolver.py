@@ -96,21 +96,25 @@ class Resolver(AbstractResolver):
 
         if self._active_module is not None:
             self._modules_last_commands[self._active_module.get_identifier()].append(message)
+            message.module = self._active_module.get_identifier()
 
         # find command for run.
         for command in self.get_all_commands(filter_by_module=True):
-            command_regexps = command.get_commands_req_exps_map(message.language)
-            for command_name in command_regexps:
-                regexp = command_regexps[command_name]
+            command_action_regexps = command.get_command_actions_req_exps_map(message.language)
+            for action_name in command_action_regexps:
+                regexp = command_action_regexps[action_name]
                 match = re.findall('^' + regexp + '$', message.text, re.IGNORECASE | re.UNICODE)
 
                 if match:
+                    message.command_identifier = command.get_identifier()
+                    message.command_action = action_name
+
                     if self._active_module is not None:
                         # Run command through module.
-                        self._active_module.process_command(command, command_name, message.language, match, message)
+                        self._active_module.process_command(command, action_name, message.language, match, message)
                     else:
                         # Run command direct.
-                        command.process_command(command_name, message.language, match, message)
+                        command.process_command(action_name, message.language, match, message)
                     return
 
         # Process unrecognized message by module.

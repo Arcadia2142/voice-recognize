@@ -26,6 +26,7 @@ ModuleDict = Dict[str, AbstractModule]
 
 
 class AbstractCommand(object):
+    CONFIG_SECTION_SHELL = 'shell'
     CONFIG_POSTFIX_REGEXP = 'regexp'
     CONFIG_POSTFIX_COMMAND = 'command'
 
@@ -36,11 +37,13 @@ class AbstractCommand(object):
         config = ConfigParser()
         config.optionxform = str
         config.read(self._get_commands_file())
-        self._commands_map = self._parse_config(config)
+
+        self._command_actions_map = self._parse_config(config)
+        self._own_shell_commands = self._parse_shell_commands(config)
 
     @abstractmethod
     # Process command by speach.
-    def process_command(self, command: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
+    def process_command(self, action: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
         pass
 
     @staticmethod
@@ -54,8 +57,8 @@ class AbstractCommand(object):
     def get_modules() -> list:
         return []
 
-    @staticmethod
-    def get_identifier() -> str:
+    # Get identifier for command.
+    def get_identifier(self) -> str:
         return str(__class__)
 
     @staticmethod
@@ -64,21 +67,23 @@ class AbstractCommand(object):
         return False
 
     # Get map commandName => regexp
-    def get_commands_req_exps_map(self, language: str) -> dict[str, str]:
+    def get_command_actions_req_exps_map(self, language: str) -> dict[str, str]:
         commands_reg_exps = {}
 
-        for command in self._commands_map[language]:
-            commands_reg_exps[command] = self._commands_map[language][command][self.CONFIG_POSTFIX_REGEXP]
+        for action in self._command_actions_map[language]:
+            commands_reg_exps[action] = self._command_actions_map[language][action][self.CONFIG_POSTFIX_REGEXP]
 
         return commands_reg_exps
 
-    @staticmethod
-    def _parse_config(config: ConfigParser) -> dict:
+    #parse command config.
+    def _parse_config(self, config: ConfigParser) -> dict:
         commands_map = {}
 
         for language in config.sections():
-            commands_map[language] = {}
+            if language == self.CONFIG_SECTION_SHELL:
+                continue
 
+            commands_map[language] = {}
             for command_data in config.options(language):
                 command_parts = command_data.split('.')
                 command_name = command_parts[0]
@@ -93,21 +98,36 @@ class AbstractCommand(object):
 
     # Call command in shell.
     def _run_shell_command(self, command: str, env=None):
-        enviroment = {
-            "DISPLAY": os.getenv('DISPLAY'),
-            "LANG": os.getenv('LANG')
-        }
+        environment = {}
+        for k, v in os.environ.items():
+            environment[k] = v
 
         if env is not None:
             for env_key in env:
-                enviroment[env_key] = env[env_key]
+                environment[env_key] = env[env_key]
 
         subprocess.call(
             command,
             shell=True,
             stdout=subprocess.PIPE,
-            env=enviroment
+            env=environment
         )
+
+    # Get own shell commands from commands config.
+    def _parse_shell_commands(self, config: ConfigParser) -> dict[str, str]:
+        own_commands = {}
+
+        if config.has_section(self.CONFIG_SECTION_SHELL):
+            for command in config.options(self.CONFIG_SECTION_SHELL):
+                own_commands[command] = config.get(self.CONFIG_SECTION_SHELL, command)
+
+        return own_commands
+
+    # Get shell cmd for command.
+    def _get_shell_command(self, command: str, default: str) -> str:
+        if command in self._own_shell_commands:
+            return self._own_shell_commands[command]
+        return default
 
 
 
@@ -183,8 +203,8 @@ class AbstractModule(object):
         return config_map
 
     # Run command in module.
-    def process_command(self, command: AbstractCommand, command_name: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
-        command.process_command(command_name, language, reg_exp_args, listen_data)
+    def process_command(self, command: AbstractCommand, action_name: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
+        command.process_command(action_name, language, reg_exp_args, listen_data)
 
     # Run unrecognized command.
     def process_unrecognized_command(self, language: str, text: str, listen_data: ListenData) -> None:

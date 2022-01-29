@@ -43,6 +43,8 @@ mkdir "${CURRENT_DIRNAME}/tmp"
     cd "${CURRENT_DIRNAME}"
 )
 
+exit 0
+
 #Download CS-model
 (
   mkdir "${CURRENT_DIRNAME}/models/cs"

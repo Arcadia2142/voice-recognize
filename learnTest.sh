@@ -1,8 +1,8 @@
 #!/bin/bash
 CURRENT_DIRNAME="$(dirname `readlink -f $0`)"
 
-EPOCHS="20"
-LANGUAGE="cs-test"
+EPOCHS="30"
+LANGUAGE="cs"
 EXPORT=false
 
 COMMANDS=()
@@ -42,9 +42,9 @@ if [ $# -eq 0 ]; then
         --alphabet_config_path "${MODEL_DIR}/alphabet.txt" \
         --checkpoint_dir "${MODEL_DIR}/checkpoint" \
         --epochs "${EPOCHS}" \
-        --train_files "$1" \
-        --test_files "$1" \
-        --learning_rate 0.0001
+        --train_files "${COMMANDS[0]}" \
+        --test_files "${COMMANDS[0]}" \
+        --learning_rate 0.001
 fi
 
 #export
@@ -54,7 +54,8 @@ DeepSpeech \
     --checkpoint_dir "${MODEL_DIR}/checkpoint" \
     --export_dir "${MODEL_DIR}/export" 
     
+    rm "${MODEL_DIR}/${LANGUAGE}.pbmm"
     convert_graphdef_memmapped_format \
     --in_graph="${MODEL_DIR}/export/output_graph.pb" \
-    --out_graph="${MODEL_DIR}/export/output_graph.pbmm"
+    --out_graph="${MODEL_DIR}/${LANGUAGE}.pbmm"
 fi

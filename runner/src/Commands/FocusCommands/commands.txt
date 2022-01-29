@@ -1,3 +1,7 @@
+[shell]
+changeFocus = xdotool search "${WINDOW}" windowactivate
+closeWindow = xdotool windowkill `xdotool getactivewindow`
+
 [cs]
 changeFocus.regexp = přepni (?:na |)(.+)
 changeFocus.help = Změní focus na jiné okno

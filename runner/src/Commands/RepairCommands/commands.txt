@@ -1,4 +1,11 @@
+[shell]
+repair = kwrite "$FILE"
+
 [cs]
-repair.regexp = oprava
+repair.regexp = (?:oprava|opravit)
 repair.help = Oprava rozpoznání textu
 repair.example = oprava
+
+learn.regexp = naučit
+learn.help = Naučit data z oprav.
+learn.example = naučit

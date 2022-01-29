@@ -5,7 +5,7 @@ from ...Abstracts import AbstractCommand, ModuleDict
 from ...Classes.Listener import ListenData
 
 
-class ModulesChange(AbstractCommand, ABC):
+class ModulesChanges(AbstractCommand, ABC):
     ACTION_CHANGE_MODULE = "changeModule"
 
     @staticmethod
@@ -16,11 +16,11 @@ class ModulesChange(AbstractCommand, ABC):
     def _get_commands_file() -> str:
         return os.path.dirname(os.path.realpath(__file__)) + "/commands.txt"
 
-    def process_command(self, command: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
-        if command == self.ACTION_CHANGE_MODULE:
-            self.command_change_module(reg_exp_args[0], language)
+    def process_command(self, action: str, language: str, reg_exp_args: list, listen_data: ListenData) -> None:
+        if action == self.ACTION_CHANGE_MODULE:
+            self.action_change_module(reg_exp_args[0], language)
 
-    def command_change_module(self, module_name: str, language: str) -> None:
+    def action_change_module(self, module_name: str, language: str) -> None:
         modules: ModuleDict = self._resolver.get_modules()
 
         for module_identifier in modules:

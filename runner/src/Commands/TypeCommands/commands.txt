@@ -1,0 +1,12 @@
+[shell]
+type = xdotool type "${TEXT}"
+enter = xdotool key Return
+
+[cs]
+type.regexp = napiš (.+)
+type.help = Napsat text
+type.example = napiš strom
+
+enter.regexp = enter
+enter.help = Použije enter
+enter.example = enter
