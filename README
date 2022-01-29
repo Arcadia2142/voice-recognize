@@ -1,0 +1,11 @@
+Now this is just dev project.
+
+For install type: make
+
+Project is based on DeepSpeech:
+https://deepspeech.readthedocs.io/en/r0.9/
+
+Voice recognize run by(after install): voice_recognize.sh
+
+Czech DeepSpeach model is from repository:
+https://github.com/comodoro/deepspeech-cs
