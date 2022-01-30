@@ -44,7 +44,7 @@ fi
     source "${CURRENT_DIRNAME}/venv/bin/activate"
 
     # Recognize install
-    if [[ "${EXPORT}" != "false" ]]; then
+    if [[ "${USE_GPU}" != "false" ]]; then
       pip3 install deepspeech-gpu
     else
       pip3 install deepspeech
@@ -59,7 +59,7 @@ fi
     # pip3 install --upgrade -e .
     pip3 install .
 
-    if [[ "${EXPORT}" != "false" ]]; then
+    if [[ "${USE_GPU}" != "false" ]]; then
       pip3 uninstall -y tensorflow
       pip3 install 'tensorflow-gpu==1.15.4'
     fi
