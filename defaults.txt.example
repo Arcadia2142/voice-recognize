@@ -1,0 +1,7 @@
+[default]
+language = cs
+vad_aggressiveness = 3
+sample_rate = 44100
+
+#device =
+#train_ram_fs_tmp = ramfs

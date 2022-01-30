@@ -17,9 +17,10 @@ class RepairCommands(AbstractCommand, ABC):
     ACTION_REPAIR = "repair"
     ACTION_LEARN = "learn"
 
-    def __init__(self, resolver: AbstractResolver, models_dir: str) -> None:
+    def __init__(self, resolver: AbstractResolver, models_dir: str, ram_fs_tmp: Optional[str] = None) -> None:
         super().__init__(resolver)
         self._models_dir = models_dir
+        self._ram_fs_tmp = ram_fs_tmp
 
     @staticmethod
     def get_modules() -> list:
@@ -42,10 +43,17 @@ class RepairCommands(AbstractCommand, ABC):
             last_messages = self._resolver.get_last_messages()
             last_messages.reverse()
 
+            # Find last message not associated with command.
             for message in last_messages:
-                if message.command_identifier is None:
+                if not message.fixed and message.command_identifier is None:
                     repair_message = message
+                    break
 
+        if repair_message is None:
+            print('No message for repair')
+            return
+
+        repair_message.fixed = True
         model_dir = self._models_dir + "/" + repair_message.language
 
         # create train dir + files..
@@ -61,39 +69,36 @@ class RepairCommands(AbstractCommand, ABC):
             f.close()
 
         # Start text editor for manual repair.
-        if repair_message is not None:
-            print("Opening " + repair_message.text_file_path + " for repair text")
+        print("Opening " + repair_message.text_file_path + " for repair text")
 
-            def repair_task(editor_command: str, message_data: ListenData, train_dir: str) -> None:
-                Utils.run_shell_command(
-                    editor_command,
-                    {"FILE": message_data.text_file_path}
-                )
-
-                text_file = open(message_data.text_file_path, 'r')
-                fixed_text = text_file.read().replace("\n", '')
-
-                wav_file_path = train_dir + "/" + message_data.timestamp + '.wav'
-                shutil.copy(message_data.wav_file_path, wav_file_path)
-
-                vaw_size = os.stat(wav_file_path).st_size
-                train_scv = open(train_dir + "/data.csv", 'a')
-                train_scv.write(message_data.timestamp + '.wav' + "," + str(vaw_size) + "," + fixed_text + "\n")
-                train_scv.close()
-
-            # Start sub-process with text editor.
-            repair_process = Process(
-                target=repair_task,
-                args=(
-                    self._get_shell_command(self.ACTION_REPAIR, 'kwrite "$FILE"'),
-                    repair_message,
-                    model_dir + "/train/learn"
-                )
+        def repair_task(editor_command: str, message_data: ListenData, train_dir: str) -> None:
+            Utils.run_shell_command(
+                editor_command,
+                {"FILE": message_data.text_file_path}
             )
-            repair_process.start()
-            return
 
-        print('No message for repair')
+            text_file = open(message_data.text_file_path, 'r')
+            fixed_text = text_file.read().replace("\n", '')
+
+            wav_file_path = train_dir + "/" + message_data.timestamp + '.wav'
+            shutil.copy(message_data.wav_file_path, wav_file_path)
+
+            vaw_size = os.stat(wav_file_path).st_size
+            train_scv = open(train_dir + "/data.csv", 'a')
+            train_scv.write(message_data.timestamp + '.wav' + "," + str(vaw_size) + "," + fixed_text + "\n")
+            train_scv.close()
+
+
+        # Start sub-process with text editor.
+        repair_process = Process(
+            target=repair_task,
+            args=(
+                self._get_shell_command(self.ACTION_REPAIR, 'kwrite "$FILE"'),
+                repair_message,
+                model_dir + "/train/learn"
+            )
+        )
+        repair_process.start()
 
     # Learn
     def action_learn(self, language: str) -> None:
@@ -112,17 +117,33 @@ class RepairCommands(AbstractCommand, ABC):
             f.write("wav_filename,wav_filesize,transcript\n")
             f.close()
 
-        def learn_task(language_inner: str, model_dir_inner: str):
+        def learn_task(language_inner: str, model_dir_inner: str, ram_fs_inner: Optional[str] = None):
             # Copy to learning folder.
             os.rename(model_dir_inner + '/train/learn', model_dir_inner + '/train/learning')
 
+            # Copy checkpoints to ram fs.
+            use_ram_fs = False
+            checkpoint_dir = checkpoint_original_dir = model_dir_inner + '/checkpoint'
+            if ram_fs_inner is not None:
+                if os.path.isdir(ram_fs_inner):
+                    use_ram_fs = True
+                    checkpoint_dir = ram_fs_inner + '/model-' + language_inner
+
+                    if not os.path.isdir(checkpoint_dir):
+                        os.mkdir(checkpoint_dir)
+
+                    for file_name in os.listdir(checkpoint_original_dir):
+                        shutil.copy(checkpoint_original_dir + "/" + file_name, checkpoint_dir + "/" + file_name)
+                else:
+                    print("Ram FS dir doesnt exist.")
+
             # Learn data.
-            Utils.run_shell_command(
+            return_code = Utils.run_shell_command(
                 [
                     'deepspeech-train',
                     '--n_hidden', '2048',
                     '--alphabet_config_path', model_dir_inner + '/alphabet.txt',
-                    '--checkpoint_dir', model_dir_inner + '/checkpoint',
+                    '--checkpoint_dir', checkpoint_dir,
                     '--epochs', '30',
                     '--train_files', model_dir_inner + '/train/learning/data.csv',
                     '--test_files', model_dir_inner + '/train/learning/data.csv',
@@ -132,6 +153,22 @@ class RepairCommands(AbstractCommand, ABC):
                 ],
                 shell=False
             )
+
+            #Learn failed.
+            if return_code != 0:
+                print("Learning process failed.")
+                return None
+
+            # Copy from ram FS.
+            if use_ram_fs:
+                os.rename(checkpoint_original_dir, checkpoint_original_dir + ".bak")
+                os.mkdir(checkpoint_original_dir)
+
+                for file_name in os.listdir(checkpoint_dir):
+                    shutil.copy(checkpoint_dir + "/" + file_name, checkpoint_original_dir + "/" + file_name)
+
+                shutil.rmtree(checkpoint_dir)
+                shutil.rmtree(checkpoint_original_dir + ".bak")
 
             # Convert to pbmm
             pbmm_file_address = model_dir_inner + '/' + language_inner + '.pbmm'
@@ -178,7 +215,8 @@ class RepairCommands(AbstractCommand, ABC):
             target=learn_task,
             args=(
                 language,
-                model_dir
+                model_dir,
+                self._ram_fs_tmp
             )
         )
 

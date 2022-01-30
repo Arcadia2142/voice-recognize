@@ -91,8 +91,12 @@ fi
     mkdir "${CURRENT_DIRNAME}/models/cs/checkpoint"
     unzip "${CURRENT_DIRNAME}/models/cs/checkpoint.zip" -d "${CURRENT_DIRNAME}/models/cs/checkpoint/"
 
-    echo "model_checkpoint_path: \"${CURRENT_DIRNAME}/models/cs/checkpoint/best_dev-1777698\"" > "${CURRENT_DIRNAME}/models/cs/checkpoint/checkpoint"
-    echo "all_model_checkpoint_paths: \"${CURRENT_DIRNAME}/models/cs/checkpoint/best_dev-1777698\"" >> "${CURRENT_DIRNAME}/models/cs/checkpoint/checkpoint"
+    mv "${CURRENT_DIRNAME}/models/cs/checkpoint/best_dev-1777698.data-00000-of-00001" "${CURRENT_DIRNAME}/models/cs/checkpoint/train-1777698.data-00000-of-00001"
+    mv "${CURRENT_DIRNAME}/models/cs/checkpoint/best_dev-1777698.index" "${CURRENT_DIRNAME}/models/cs/checkpoint/train-1777698.index"
+    mv "${CURRENT_DIRNAME}/models/cs/checkpoint/best_dev-1777698.meta" "${CURRENT_DIRNAME}/models/cs/checkpoint/train-1777698.meta"
+
+    echo "model_checkpoint_path: \"${CURRENT_DIRNAME}/models/cs/checkpoint/train-1777698\"" > "${CURRENT_DIRNAME}/models/cs/checkpoint/checkpoint"
+    echo "all_model_checkpoint_paths: \"${CURRENT_DIRNAME}/models/cs/checkpoint/train-1777698\"" >> "${CURRENT_DIRNAME}/models/cs/checkpoint/checkpoint"
     rm "${CURRENT_DIRNAME}/models/cs/checkpoint.zip"
   fi
 )

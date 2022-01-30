@@ -98,6 +98,10 @@ class Resolver(AbstractResolver):
             self._modules_last_commands[self._active_module.get_identifier()].append(message)
             message.module = self._active_module.get_identifier()
 
+        if message.text is None:
+            print('Some unrecognized text')
+            return
+
         # find command for run.
         for command in self.get_all_commands(filter_by_module=True):
             command_action_regexps = command.get_command_actions_req_exps_map(message.language)

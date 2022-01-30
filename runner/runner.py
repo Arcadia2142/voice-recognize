@@ -1,4 +1,6 @@
 import os
+
+from configparser import ConfigParser
 from multiprocessing import Process, Pipe
 from colorama import deinit
 
@@ -11,7 +13,6 @@ from src.Modules.TextModule.TextModule import TextModule
 from src.Modules.EditModule.TextModule import EditModule
 from src.Modules.RepairModule.RepairModule import RepairModule
 from src.Modules.CommandModule.CommandModule import CommandModule
-
 
 # Commands import
 from src.Commands.ModulesChanges.ModulesChanges import ModulesChanges
@@ -30,17 +31,16 @@ def start_message_queue(listener_pipe, resolver_pipe):
     queue.run()
 
 
-def start_resolver(master_pipe, resolver_pipe, root_dir: str):
+def start_resolver(args, master_pipe, resolver_pipe, root_dir: str):
     resolver = Resolver(master_pipe, resolver_pipe)
 
     # fill with commands
     resolver.add_command(ModulesChanges(resolver))
     resolver.add_command(FocusCommands(resolver))
-    resolver.add_command(RepairCommands(resolver, root_dir + "/models"))
+    resolver.add_command(RepairCommands(resolver, root_dir + "/models", args.ram_fs_tmp))
 
     type_command = TypeCommands(resolver)
     resolver.add_command(type_command)
-
 
     # fill modules
     resolver.add_module(TextModule(resolver, type_command))
@@ -53,12 +53,11 @@ def start_resolver(master_pipe, resolver_pipe, root_dir: str):
 
     resolver.run()
 
-def main(ARGS):
+
+def main(ARGS, root_dir: str):
     deinit()
 
-    root_dir = os.path.realpath(os.path.dirname(os.path.realpath(__file__)) + "/..")
-
-    #Create missing temp dir
+    # Create missing temp dir
     temp_dir = root_dir + "/tmp"
     if not os.path.isdir(temp_dir):
         os.mkdir(temp_dir)
@@ -75,7 +74,7 @@ def main(ARGS):
 
     # command resolver.
     resolver_master_pipe, resolver_inner_pipe = Pipe()
-    resolver_process = Process(target=start_resolver, args=(message_queue_resolver, resolver_inner_pipe, root_dir))
+    resolver_process = Process(target=start_resolver, args=(ARGS, message_queue_resolver, resolver_inner_pipe, root_dir))
     resolver_process.start()
 
     while True:
@@ -83,28 +82,54 @@ def main(ARGS):
 
 
 if __name__ == '__main__':
-    DEFAULT_SAMPLE_RATE = 44100
-    DEFAULT_LANGUAGE = "cs"
+    CONFIG_MAIN_SECTION = "default"
 
-    import sys, os
-
-    sys.path.insert(0, os.path.abspath('.'))
+    CONFIG_OPTION_LANGUAGE = 'language'
+    CONFIG_OPTION_VAD_AGGR = 'vad_aggressiveness'
+    CONFIG_OPTION_S_RATE = 'sample_rate'
+    CONFIG_OPTION_DEVICE = 'device'
+    CONFIG_RAM_FS_TMP = 'train_ram_fs_tmp'
 
     import argparse
 
+    root_dir = os.path.realpath(os.path.dirname(os.path.realpath(__file__)) + "/..")
+
+    config = ConfigParser()
+    if os.path.isfile(root_dir + "/defaults.txt"):
+        config.read(root_dir + "/defaults.txt")
+
+    language = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_LANGUAGE, fallback="cs")
+    vad_aggressiveness = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_VAD_AGGR, fallback=3)
+    sample_rate = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_S_RATE, fallback=44100)
+    device = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_DEVICE, fallback=None)
+    ram_fs_tmp = config.get(CONFIG_MAIN_SECTION, CONFIG_RAM_FS_TMP, fallback=None)
+
     parser = argparse.ArgumentParser(description="Stream from microphone to DeepSpeech using VAD")
 
-    parser.add_argument('-v', '--vad_aggressiveness', type=int, default=3,
-                        help="Set aggressiveness of VAD: an integer between 0 and 3, 0 being the least aggressive about filtering out non-speech, 3 the most aggressive. Default: 2")
+    parser.add_argument('-v', '--vad_aggressiveness',
+                        type=int,
+                        default=vad_aggressiveness,
+                        help=f"Set aggressiveness of VAD: an integer between 0 and 3, 0 being the least aggressive about filtering out non-speech, 3 the most aggressive. Default: {vad_aggressiveness}"
+                        )
 
     parser.add_argument('-l', '--language',
-                        help=f"Default language Default: {DEFAULT_LANGUAGE}", default=DEFAULT_LANGUAGE)
+                        help=f"Default language Default: {language}",
+                        default=language
+                        )
 
-    parser.add_argument('-r', '--rate', type=int, default=DEFAULT_SAMPLE_RATE,
-                        help=f"Input device sample rate. Default: {DEFAULT_SAMPLE_RATE}. Your device may require 44100.")
+    parser.add_argument('-r', '--rate', type=int, default=sample_rate,
+                        help=f"Input device sample rate. Default: {sample_rate}. Your device may require 44100.")
 
-    parser.add_argument('-d', '--device', type=int, default=None,
+    parser.add_argument('-d', '--device', type=int, default=device,
                         help="Device input index (Int) as listed by pyaudio.PyAudio.get_device_info_by_index(). If not provided, falls back to PyAudio.get_default_device().")
 
+    parser.add_argument('--ram_fs_tmp', default=ram_fs_tmp,
+                        help="Path to RAM FS tmp dir for speedup train process")
+
     ARGS = parser.parse_args()
-    main(ARGS)
+
+    #Expand relative path to absolute.
+    if ARGS.ram_fs_tmp is not None and not os.path.isabs(ARGS.ram_fs_tmp):
+        ARGS.ram_fs_tmp = os.path.realpath(root_dir + "/" + ARGS.ram_fs_tmp)
+
+    main(ARGS, root_dir)

@@ -9,9 +9,9 @@ from .Audio import VADAudio
 
 
 class ListenData(object):
-    def __init__(self, language: str, text: str, timestamp: str, text_file_path: str, wav_file_path: str) -> None:
+    def __init__(self, language: str, text: Optional[str], timestamp: str, text_file_path: str, wav_file_path: str) -> None:
         super().__init__()
-        self.text: str = text
+        self.text: Optional[str] = text
         self.language: str = language
 
         self.text_file_path: str = text_file_path
@@ -21,6 +21,8 @@ class ListenData(object):
         self.module: Optional[str] = None
         self.command_identifier: Optional[str] = None
         self.command_action: Optional[str] = None
+
+        self.fixed: bool = False
 
 
 class Listener(object):
@@ -56,6 +58,8 @@ class Listener(object):
         stream_context = model.createStream()
         wav_data = bytearray()
 
+        print("Listen engine ready!")
+
         for frame in frames:
             if frame is not None:
                 stream_context.feedAudioContent(np.frombuffer(frame, np.int16))
@@ -63,30 +67,32 @@ class Listener(object):
             else:
                 text = stream_context.finishStream()
 
-                if text.strip() != "":
-                    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
+                if text.strip() == "":
+                    text = None
 
-                    # save audio for possible correct. {
-                    dirname = os.path.join(temp_dir, timestamp)
-                    os.mkdir(dirname)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
 
-                    vad_audio.write_wav(dirname + "/voice.wav", wav_data)
+                # save audio for possible correct. {
+                dirname = os.path.join(temp_dir, timestamp)
+                os.mkdir(dirname)
 
-                    f = open(dirname + "/text.txt", "w")
-                    f.write(text)
-                    f.close()
-                    # }
+                vad_audio.write_wav(dirname + "/voice.wav", wav_data)
 
-                    # send data by pipe.
-                    self._pipe.send(
-                        ListenData(
-                            self._args.language,
-                            text,
-                            timestamp,
-                            dirname + "/text.txt",
-                            dirname + "/voice.wav"
-                        )
+                f = open(dirname + "/text.txt", "w")
+                f.write(str(text))
+                f.close()
+                # }
+
+                # send data by pipe.
+                self._pipe.send(
+                    ListenData(
+                        self._args.language,
+                        text,
+                        timestamp,
+                        dirname + "/text.txt",
+                        dirname + "/voice.wav"
                     )
+                )
 
                 wav_data = bytearray()
                 stream_context = model.createStream()
