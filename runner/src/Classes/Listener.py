@@ -25,15 +25,14 @@ class ListenData(object):
 
 class Listener(object):
 
-    def __init__(self, pipe: Connection, args) -> None:
+    def __init__(self, pipe: Connection, args, root_dir: str) -> None:
         self._pipe = pipe
         self._args = args
+        self._root_dir = root_dir
 
     def run(self) -> None:
-        temp_dir = os.path.realpath(
-            os.path.dirname(os.path.realpath(__file__)) + "/../../../tmp/" + self._args.language)
-        model_dir = os.path.realpath(
-            os.path.dirname(os.path.realpath(__file__)) + "/../../../models/" + self._args.language)
+        temp_dir = self._root_dir + "/tmp/" + self._args.language
+        model_dir = self._root_dir + "/models/" + self._args.language
 
         if not os.path.isdir(temp_dir):
             os.mkdir(temp_dir)

@@ -20,8 +20,8 @@ from src.Commands.RepairCommands.RepairCommands import RepairCommands
 from src.Commands.TypeCommands.TypeCommands import TypeCommands
 
 
-def start_listener(pipe, args):
-    listener = Listener(pipe, args)
+def start_listener(pipe, args, root_dir: str):
+    listener = Listener(pipe, args, root_dir)
     listener.run()
 
 
@@ -58,9 +58,14 @@ def main(ARGS):
 
     root_dir = os.path.realpath(os.path.dirname(os.path.realpath(__file__)) + "/..")
 
+    #Create missing temp dir
+    temp_dir = root_dir + "/tmp"
+    if not os.path.isdir(temp_dir):
+        os.mkdir(temp_dir)
+
     # Start listen for text.
     listener_pipe_extern, listener_pipe_inner = Pipe()
-    listener_process = Process(target=start_listener, args=(listener_pipe_inner, ARGS))
+    listener_process = Process(target=start_listener, args=(listener_pipe_inner, ARGS, root_dir))
     listener_process.start()
 
     # Start message queen.

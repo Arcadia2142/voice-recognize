@@ -6,6 +6,4 @@ prepare: clean
 	bash install.sh
 
 clean:
-	rm -Rf ./tmp
-	rm -Rf ./train
-	rm -Rf ./recognize
+	rm -Rf ./venv ./tmp

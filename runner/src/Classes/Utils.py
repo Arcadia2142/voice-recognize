@@ -1,11 +1,10 @@
 import subprocess, os
 
-
 class Utils(object):
 
     # Call command in shell.
     @staticmethod
-    def run_shell_command(command: str, env=None):
+    def run_shell_command( command: any, env=None, shell: bool = True) -> int:
         environment = {}
         for k, v in os.environ.items():
             environment[k] = v
@@ -14,9 +13,9 @@ class Utils(object):
             for env_key in env:
                 environment[env_key] = env[env_key]
 
-        subprocess.call(
+        return subprocess.call(
             command,
-            shell=True,
+            shell=shell,
             stdout=subprocess.PIPE,
             env=environment
         )

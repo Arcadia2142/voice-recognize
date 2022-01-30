@@ -33,11 +33,11 @@ while test $# -gt 0; do
 done
 
 MODEL_DIR="${CURRENT_DIRNAME}/models/${LANGUAGE}"
-source "${CURRENT_DIRNAME}/train/bin/activate"
+source "${CURRENT_DIRNAME}/venv/bin/activate"
 
 #Learn
 if [ $# -eq 0 ]; then
-    DeepSpeech \
+    deepspeech-train \
         --n_hidden 2048 \
         --alphabet_config_path "${MODEL_DIR}/alphabet.txt" \
         --checkpoint_dir "${MODEL_DIR}/checkpoint" \
@@ -49,7 +49,7 @@ fi
 
 #export
 if [[ "${EXPORT}" != "false" ]]; then
-DeepSpeech \
+  deepspeech-train \
     --alphabet_config_path "${MODEL_DIR}/alphabet.txt" \
     --checkpoint_dir "${MODEL_DIR}/checkpoint" \
     --export_dir "${MODEL_DIR}/export" 

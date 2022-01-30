@@ -1,6 +1,8 @@
 from abc import ABC
 
-import os, shutil
+import os
+import shutil
+import csv
 
 from typing import Optional
 from multiprocessing import Process
@@ -76,7 +78,7 @@ class RepairCommands(AbstractCommand, ABC):
 
                 vaw_size = os.stat(wav_file_path).st_size
                 train_scv = open(train_dir + "/data.csv", 'a')
-                train_scv.write(wav_file_path + "," + str(vaw_size) + "," + fixed_text + "\n")
+                train_scv.write(message_data.timestamp + '.wav' + "," + str(vaw_size) + "," + fixed_text + "\n")
                 train_scv.close()
 
             # Start sub-process with text editor.
@@ -102,14 +104,81 @@ class RepairCommands(AbstractCommand, ABC):
             print("No data for learn")
             return
 
-        def learn_task():
-            pass
+        if not os.path.isdir(model_dir + "/train/learned"):
+            os.mkdir(model_dir + "/train/learned")
+
+        if not os.path.isfile(model_dir + "/train/learned/data.csv"):
+            f = open(model_dir + "/train/learned/data.csv", "w")
+            f.write("wav_filename,wav_filesize,transcript\n")
+            f.close()
+
+        def learn_task(language_inner: str, model_dir_inner: str):
+            # Copy to learning folder.
+            os.rename(model_dir_inner + '/train/learn', model_dir_inner + '/train/learning')
+
+            # Learn data.
+            Utils.run_shell_command(
+                [
+                    'deepspeech-train',
+                    '--n_hidden', '2048',
+                    '--alphabet_config_path', model_dir_inner + '/alphabet.txt',
+                    '--checkpoint_dir', model_dir_inner + '/checkpoint',
+                    '--epochs', '30',
+                    '--train_files', model_dir_inner + '/train/learning/data.csv',
+                    '--test_files', model_dir_inner + '/train/learning/data.csv',
+                    '--learning_rate', '0.001',
+                    '--export_dir', model_dir_inner + '/export',
+                    '--show_progressbar'
+                ],
+                shell=False
+            )
+
+            # Convert to pbmm
+            pbmm_file_address = model_dir_inner + '/' + language_inner + '.pbmm'
+            try:
+                os.rename(pbmm_file_address, pbmm_file_address + ".bak")
+
+                return_code = Utils.run_shell_command(
+                    [
+                        'convert_graphdef_memmapped_format',
+                        '--in_graph=' + model_dir_inner + '/export/output_graph.pb',
+                        '--out_graph=' + model_dir_inner + '/' + language_inner + '.pbmm'
+                    ],
+                    shell=False
+                )
+
+                if return_code == 0:
+                    os.remove(pbmm_file_address + ".bak")
+                else:
+                    os.rename(pbmm_file_address + ".bak", pbmm_file_address)
+            except Exception as e:
+                os.rename(pbmm_file_address + ".bak", pbmm_file_address)
+                raise
+
+                # Copy data to learned folder.
+            with open(model_dir_inner + "/train/learned/data.csv", "a") as learned_csv:
+                with open(model_dir_inner + '/train/learning/data.csv') as csv_file:
+                    csv_reader = csv.reader(csv_file, delimiter=',')
+
+                    is_header = True
+                    for row in csv_reader:
+                        if is_header:
+                            is_header = False
+                            continue
+
+                        os.rename(model_dir_inner + '/train/learning/' + row[0],
+                                  model_dir_inner + '/train/learned/' + row[0])
+                        learned_csv.write(','.join(row) + "\n")
+
+            shutil.rmtree(model_dir_inner + '/train/learning/')
+            print("Learn process complete")
 
         # Start sub-process for learning.
         learn_process = Process(
             target=learn_task,
             args=(
-                model_dir + "/train/",
+                language,
+                model_dir
             )
         )
 
