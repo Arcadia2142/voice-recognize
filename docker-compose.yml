@@ -1,0 +1,15 @@
+version: "2.3"
+services:
+  train-gpu:
+    build: ./docker/train-gpu
+    restart: always
+    tty: true
+
+    volumes:
+      - ./models:/models
+      - ./ramfs:/ramfs
+      - ./tmp:/.local
+      - ./train:/train
+
+    user: ${CURRENT_UID}
+    runtime: nvidia

@@ -39,16 +39,15 @@ fi
     rm -Rf "${CURRENT_DIRNAME}/venv"
     mkdir "${CURRENT_DIRNAME}/venv"
 
+    rm -Rf "${CURRENT_DIRNAME}/ramfs"
+    mkdir "${CURRENT_DIRNAME}/ramfs"
+
     # Setup venv
     virtualenv -p python3 "${CURRENT_DIRNAME}/venv/"
     source "${CURRENT_DIRNAME}/venv/bin/activate"
 
     # Recognize install
-    if [[ "${USE_GPU}" != "false" ]]; then
-      pip3 install deepspeech-gpu
-    else
-      pip3 install deepspeech
-    fi
+    pip3 install deepspeech
 
     # Learn install
     git clone --branch v0.9.3 https://github.com/mozilla/DeepSpeech "${CURRENT_DIRNAME}/venv/DeepSpeech"
@@ -58,11 +57,6 @@ fi
     pip3 install --upgrade wheel==0.34.2 setuptools==49.6.0
     # pip3 install --upgrade -e .
     pip3 install .
-
-    if [[ "${USE_GPU}" != "false" ]]; then
-      pip3 uninstall -y tensorflow
-      pip3 install 'tensorflow-gpu==1.15.4'
-    fi
 
     ln -s "${CURRENT_DIRNAME}/venv/DeepSpeech/DeepSpeech.py" "${CURRENT_DIRNAME}/venv/bin/deepspeech-train"
 
@@ -74,6 +68,13 @@ fi
     cd "${CURRENT_DIRNAME}/runner/"
     pip install -r requirements.txt
     cd "${CURRENT_DIRNAME}"
+)
+
+(
+  if [[ "${USE_GPU}" != "false" ]]; then
+    rm -Rf "${CURRENT_DIRNAME}/docker"
+    mkdir "${CURRENT_DIRNAME}/docker"
+  fi
 )
 
 #Download CS-model

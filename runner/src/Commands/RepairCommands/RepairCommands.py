@@ -3,8 +3,9 @@ from abc import ABC
 import os
 import shutil
 import csv
+import re
 
-from typing import Optional
+from typing import Optional, Dict
 from multiprocessing import Process
 
 from ...Abstracts import AbstractCommand, AbstractResolver
@@ -12,15 +13,22 @@ from ...Classes.Listener import ListenData
 from ...Modules.RepairModule.RepairModule import RepairModule
 from ...Classes.Utils import Utils
 
+class RepairCommandsOptions(object):
+
+    def __init__(self, model_dir: str) -> None:
+        super().__init__()
+        self.model_dir : str = model_dir
+        self.ram_fs_tmp : Optional[str] = None
+        self.use_docker : bool = False
+
 
 class RepairCommands(AbstractCommand, ABC):
     ACTION_REPAIR = "repair"
     ACTION_LEARN = "learn"
 
-    def __init__(self, resolver: AbstractResolver, models_dir: str, ram_fs_tmp: Optional[str] = None) -> None:
+    def __init__(self, resolver: AbstractResolver, options: RepairCommandsOptions) -> None:
         super().__init__(resolver)
-        self._models_dir = models_dir
-        self._ram_fs_tmp = ram_fs_tmp
+        self._options = options
 
     @staticmethod
     def get_modules() -> list:
@@ -54,7 +62,7 @@ class RepairCommands(AbstractCommand, ABC):
             return
 
         repair_message.fixed = True
-        model_dir = self._models_dir + "/" + repair_message.language
+        model_dir = self._options.model_dir + "/" + repair_message.language
 
         # create train dir + files..
         if not os.path.isdir(model_dir + "/train"):
@@ -104,7 +112,7 @@ class RepairCommands(AbstractCommand, ABC):
     def action_learn(self, language: str) -> None:
         print("Starting learn process")
 
-        model_dir = self._models_dir + "/" + language
+        model_dir = self._options.model_dir + "/" + language
         if not os.path.isfile(model_dir + "/train/learn/data.csv"):
             print("No data for learn")
             return
@@ -117,7 +125,11 @@ class RepairCommands(AbstractCommand, ABC):
             f.write("wav_filename,wav_filesize,transcript\n")
             f.close()
 
-        def learn_task(language_inner: str, model_dir_inner: str, ram_fs_inner: Optional[str] = None):
+        def learn_task(language_inner: str, options: RepairCommandsOptions):
+
+            model_dir_inner = options.model_dir + "/" + language_inner
+            ram_fs_inner = options.ram_fs_tmp
+
             # Copy to learning folder.
             os.rename(model_dir_inner + '/train/learn', model_dir_inner + '/train/learning')
 
@@ -137,20 +149,36 @@ class RepairCommands(AbstractCommand, ABC):
                 else:
                     print("Ram FS dir doesnt exist.")
 
+            # Run learning process in docker.
+            model_dir_learn = model_dir
+            checkpoint_dir_learn = checkpoint_dir
+            wrapper_runner_pre = []
+            wrapper_runner_pos = []
+
+            if options.use_docker:
+                wrapper_runner_pre = ['docker', 'exec', '-it', 'deepspeach_train-gpu_1']
+                wrapper_runner_pos = ['--train_cudnn']
+
+                model_dir_learn = "/models/" + language_inner
+                checkpoint_dir = model_dir_learn + '/checkpoint'
+
+                if ram_fs_inner:
+                    checkpoint_dir_learn = '/ramfs/model-' + language_inner
+
             # Learn data.
             return_code = Utils.run_shell_command(
-                [
+                wrapper_runner_pre + [
                     'deepspeech-train',
                     '--n_hidden', '2048',
-                    '--alphabet_config_path', model_dir_inner + '/alphabet.txt',
-                    '--checkpoint_dir', checkpoint_dir,
+                    '--alphabet_config_path', model_dir_learn + '/alphabet.txt',
+                    '--checkpoint_dir', checkpoint_dir_learn,
                     '--epochs', '30',
-                    '--train_files', model_dir_inner + '/train/learning/data.csv',
-                    '--test_files', model_dir_inner + '/train/learning/data.csv',
+                    '--train_files', model_dir_learn + '/train/learning/data.csv',
+                    '--test_files', model_dir_learn + '/train/learning/data.csv',
                     '--learning_rate', '0.001',
-                    '--export_dir', model_dir_inner + '/export',
+                    '--export_dir', model_dir_learn + '/export',
                     '--show_progressbar'
-                ],
+                ] + wrapper_runner_pos,
                 shell=False
             )
 
@@ -159,16 +187,36 @@ class RepairCommands(AbstractCommand, ABC):
                 print("Learning process failed.")
                 return None
 
+            checkpoint_file_map: Dict[str, bool] = {}
+            with open(checkpoint_dir + "/checkpoint", 'r') as checkpoint_file:
+                checkpoint_files_paths_reg = re.compile(r'^all_model_checkpoint_paths:\s+"(.+)"$')
+
+                for checkpoint_line in checkpoint_file.readlines():
+                    checkpoint_file_path = checkpoint_files_paths_reg.findall(checkpoint_line.strip())
+                    if checkpoint_file_path:
+                        checkpoint_file_map[checkpoint_file_path[0]] = True
+
+
             # Copy from ram FS.
             if use_ram_fs:
                 os.rename(checkpoint_original_dir, checkpoint_original_dir + ".bak")
                 os.mkdir(checkpoint_original_dir)
 
                 for file_name in os.listdir(checkpoint_dir):
-                    shutil.copy(checkpoint_dir + "/" + file_name, checkpoint_original_dir + "/" + file_name)
+                    file_path = os.path.splitext( os.path.realpath(checkpoint_dir + "/" + file_name))[0]
+
+                    if file_path in checkpoint_file_map or file_name == 'checkpoint':
+                        shutil.copy(checkpoint_dir + "/" + file_name, checkpoint_original_dir + "/" + file_name)
 
                 shutil.rmtree(checkpoint_dir)
                 shutil.rmtree(checkpoint_original_dir + ".bak")
+            else:
+                # Remove old checkpoints.
+                for file_name in os.listdir(checkpoint_original_dir):
+                    file_path = os.path.splitext( os.path.realpath(checkpoint_original_dir + "/" + file_name))[0]
+                    if file_path not in checkpoint_file_map and file_name != 'checkpoint':
+                        os.remove(file_path)
+
 
             # Convert to pbmm
             pbmm_file_address = model_dir_inner + '/' + language_inner + '.pbmm'
@@ -215,8 +263,7 @@ class RepairCommands(AbstractCommand, ABC):
             target=learn_task,
             args=(
                 language,
-                model_dir,
-                self._ram_fs_tmp
+                self._options
             )
         )
 

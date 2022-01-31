@@ -17,7 +17,7 @@ from src.Modules.CommandModule.CommandModule import CommandModule
 # Commands import
 from src.Commands.ModulesChanges.ModulesChanges import ModulesChanges
 from src.Commands.FocusCommands.FocusCommands import FocusCommands
-from src.Commands.RepairCommands.RepairCommands import RepairCommands
+from src.Commands.RepairCommands.RepairCommands import RepairCommands, RepairCommandsOptions
 from src.Commands.TypeCommands.TypeCommands import TypeCommands
 
 
@@ -34,10 +34,14 @@ def start_message_queue(listener_pipe, resolver_pipe):
 def start_resolver(args, master_pipe, resolver_pipe, root_dir: str):
     resolver = Resolver(master_pipe, resolver_pipe)
 
+    repair_options = RepairCommandsOptions(root_dir + "/models")
+    repair_options.ram_fs_tmp = args.ram_fs_tmp
+    repair_options.use_docker = args.enable_gpu_docker
+
     # fill with commands
     resolver.add_command(ModulesChanges(resolver))
     resolver.add_command(FocusCommands(resolver))
-    resolver.add_command(RepairCommands(resolver, root_dir + "/models", args.ram_fs_tmp))
+    resolver.add_command(RepairCommands(resolver, repair_options))
 
     type_command = TypeCommands(resolver)
     resolver.add_command(type_command)
@@ -88,7 +92,8 @@ if __name__ == '__main__':
     CONFIG_OPTION_VAD_AGGR = 'vad_aggressiveness'
     CONFIG_OPTION_S_RATE = 'sample_rate'
     CONFIG_OPTION_DEVICE = 'device'
-    CONFIG_RAM_FS_TMP = 'train_ram_fs_tmp'
+    CONFIG_OPTION_RAM_FS = 'train_ram_fs_tmp'
+    CONFIG_OPTION_EN_GPU = 'enable_gpu_docker'
 
     import argparse
 
@@ -99,10 +104,11 @@ if __name__ == '__main__':
         config.read(root_dir + "/defaults.txt")
 
     language = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_LANGUAGE, fallback="cs")
-    vad_aggressiveness = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_VAD_AGGR, fallback=3)
-    sample_rate = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_S_RATE, fallback=44100)
-    device = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_DEVICE, fallback=None)
-    ram_fs_tmp = config.get(CONFIG_MAIN_SECTION, CONFIG_RAM_FS_TMP, fallback=None)
+    vad_aggressiveness = config.getint(CONFIG_MAIN_SECTION, CONFIG_OPTION_VAD_AGGR, fallback=3)
+    sample_rate = config.getint(CONFIG_MAIN_SECTION, CONFIG_OPTION_S_RATE, fallback=44100)
+    device = config.getint(CONFIG_MAIN_SECTION, CONFIG_OPTION_DEVICE, fallback=None)
+    ram_fs_tmp = config.get(CONFIG_MAIN_SECTION, CONFIG_OPTION_RAM_FS, fallback=None)
+    enable_gpu = config.getboolean(CONFIG_MAIN_SECTION, CONFIG_OPTION_EN_GPU, fallback=False)
 
     parser = argparse.ArgumentParser(description="Stream from microphone to DeepSpeech using VAD")
 
@@ -125,6 +131,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--ram_fs_tmp', default=ram_fs_tmp,
                         help="Path to RAM FS tmp dir for speedup train process")
+
+    parser.add_argument('--enable_gpu_docker', default=enable_gpu, action='store_true',
+                        help="Enable process learning on GPU.")
 
     ARGS = parser.parse_args()
 

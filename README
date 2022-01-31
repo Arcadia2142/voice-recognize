@@ -7,5 +7,12 @@ https://deepspeech.readthedocs.io/en/r0.9/
 
 Voice recognize run by(after install): voice_recognize.sh
 
+For acceleration on GPU you need linux with nvidia driver 418+ and docker support..:
+https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+
+For train from scratch (GPU-only) download train data from https://commonvoice.mozilla.org/en/datasets
+to ./train/<language> add your alphabet.txt use ./train/prepare_lang.sh <language> for prepare data
+and train model by full_learn.sh <language>
+
 Czech DeepSpeach model is from repository:
 https://github.com/comodoro/deepspeech-cs
